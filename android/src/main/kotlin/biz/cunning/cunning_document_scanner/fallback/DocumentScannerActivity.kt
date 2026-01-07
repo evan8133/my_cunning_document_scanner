@@ -44,6 +44,16 @@ class DocumentScannerActivity : AppCompatActivity() {
     private var croppedImageQuality = DefaultSetting.CROPPED_IMAGE_QUALITY
 
     /**
+     * @property singleDocumentMode when true, only one document can be scanned
+     */
+    private var singleDocumentMode = false
+
+    /**
+     * @property frameColor the color of the document detection frame
+     */
+    private var frameColor: String? = null
+
+    /**
      * @property cropperOffsetWhenCornersNotFound if we can't find document corners, we set
      * corners to image size with a slight margin
      */
@@ -71,12 +81,13 @@ class DocumentScannerActivity : AppCompatActivity() {
             // user takes photo
             originalPhotoPath ->
 
-            // if maxNumDocuments is 3 and this is the 3rd photo, hide the new photo button since
+            // if singleDocumentMode is enabled and this is the first document, hide the new photo button
+            // OR if maxNumDocuments is 3 and this is the 3rd photo, hide the new photo button since
             // we reach the allowed limit
-            if (documents.size == maxNumDocuments - 1) {
+            if ((singleDocumentMode && documents.size == 0) || documents.size == maxNumDocuments - 1) {
                 val newPhotoButton: ImageButton = findViewById(R.id.new_photo_button)
                 newPhotoButton.isClickable = false
-                newPhotoButton.visibility = View.INVISIBLE
+                newPhotoButton.visibility = View.GONE
             }
 
             // get bitmap from photo file path
@@ -126,6 +137,11 @@ class DocumentScannerActivity : AppCompatActivity() {
 
                 // display cropper, and allow user to move corners
                 imageView.setCropper(cornersInImagePreviewCoordinates)
+                
+                // Apply frame color if specified
+                if (frameColor != null) {
+                    imageView.setFrameColor(frameColor)
+                }
             } catch (exception: Exception) {
                 finishIntentWithError(
                     "unable get image preview ready: ${exception.message}"
@@ -184,6 +200,20 @@ class DocumentScannerActivity : AppCompatActivity() {
                     )
                 }
                 croppedImageQuality = it
+            }
+
+            // read singleDocumentMode option
+            intent.extras?.get(DocumentScannerExtra.EXTRA_SINGLE_DOCUMENT_MODE)?.let {
+                if (it is Boolean) {
+                    singleDocumentMode = it
+                }
+            }
+
+            // read frameColor option
+            intent.extras?.get(DocumentScannerExtra.EXTRA_FRAME_COLOR)?.let {
+                if (it is String) {
+                    frameColor = it
+                }
             }
         } catch (exception: Exception) {
             finishIntentWithError(

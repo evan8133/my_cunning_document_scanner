@@ -18,12 +18,18 @@ class CunningDocumentScanner {
   ///
   /// [noOfPages] is the maximum number of pages that can be scanned.
   /// [isGalleryImportAllowed] is a flag that allows the user to import images from the gallery.
+  /// [singleDocumentMode] when true, ensures only one document is scanned and the scanner
+  /// returns immediately after the first document is captured.
+  /// [frameColor] allows customization of the document detection frame color on Android.
+  /// Supports hex colors (e.g., "#FF0000" or "FF0000") or named colors (e.g., "red", "blue").
   /// [iosScannerOptions] is a set of options for the iOS scanner.
   ///
   /// Returns a list of paths to the scanned images, or null if the user cancels the operation.
   static Future<List<String>?> getPictures({
     int noOfPages = 100,
     bool isGalleryImportAllowed = false,
+    bool singleDocumentMode = false,
+    String? frameColor,
     IosScannerOptions? iosScannerOptions,
   }) async {
     Map<Permission, PermissionStatus> statuses = await [
@@ -38,10 +44,15 @@ class CunningDocumentScanner {
     final List<dynamic>? pictures = await _channel.invokeMethod('getPictures', {
       'noOfPages': noOfPages,
       'isGalleryImportAllowed': isGalleryImportAllowed,
+      'singleDocumentMode': singleDocumentMode,
+      if (frameColor != null) 'frameColor': frameColor,
       if (iosScannerOptions != null)
         'iosScannerOptions': {
           'imageFormat': iosScannerOptions.imageFormat.name,
           'jpgCompressionQuality': iosScannerOptions.jpgCompressionQuality,
+          'singleDocumentMode': iosScannerOptions.singleDocumentMode,
+          if (iosScannerOptions.frameColor != null)
+            'frameColor': iosScannerOptions.frameColor,
         }
     });
     return pictures?.map((e) => e as String).toList();
