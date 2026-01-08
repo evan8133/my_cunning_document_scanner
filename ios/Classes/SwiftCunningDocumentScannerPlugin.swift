@@ -41,32 +41,62 @@ public class SwiftCunningDocumentScannerPlugin: NSObject, FlutterPlugin, VNDocum
     }
 
     public func documentCameraViewController(_ controller: VNDocumentCameraViewController, didFinishWith scan: VNDocumentCameraScan) {
-        let tempDirPath = self.getDocumentsDirectory()
-        let currentDateTime = Date()
-        let df = DateFormatter()
-        df.dateFormat = "yyyyMMdd-HHmmss"
-        let formattedDate = df.string(from: currentDateTime)
-        var filenames: [String] = []
+        // Dismiss the scanner immediately to return to app as fast as possible
+        presentingController?.dismiss(animated: true, completion: nil)
         
-        // If singleDocumentMode is enabled, process only the first page
-        let maxPages = scannerOptions.singleDocumentMode ? min(1, scan.pageCount) : scan.pageCount
-        
-        for i in 0 ..< maxPages {
-            let page = scan.imageOfPage(at: i)
-            let url = tempDirPath.appendingPathComponent(formattedDate + "-\(i).\(scannerOptions.imageFormat.rawValue)")
-            switch scannerOptions.imageFormat {
-            case CunningScannerImageFormat.jpg:
-                try? page.jpegData(compressionQuality: scannerOptions.jpgCompressionQuality)?.write(to: url)
-                break
-            case CunningScannerImageFormat.png:
-                try? page.pngData()?.write(to: url)
-                break
+        // Process the scan in the background to return quickly
+        DispatchQueue.global(qos: .userInitiated).async { [weak self] in
+            guard let self = self else { return }
+            
+            let tempDirPath = self.getDocumentsDirectory()
+            let currentDateTime = Date()
+            let df = DateFormatter()
+            df.dateFormat = "yyyyMMdd-HHmmss"
+            let formattedDate = df.string(from: currentDateTime)
+            var filenames: [String] = []
+            
+            // If singleDocumentMode is enabled, process ONLY the first page and return immediately
+            let maxPages = self.scannerOptions.singleDocumentMode ? min(1, scan.pageCount) : scan.pageCount
+            
+            // Process only the first page when singleDocumentMode is enabled
+            if self.scannerOptions.singleDocumentMode && scan.pageCount > 0 {
+                let page = scan.imageOfPage(at: 0)
+                let url = tempDirPath.appendingPathComponent(formattedDate + "-0.\(self.scannerOptions.imageFormat.rawValue)")
+                
+                switch self.scannerOptions.imageFormat {
+                case CunningScannerImageFormat.jpg:
+                    try? page.jpegData(compressionQuality: self.scannerOptions.jpgCompressionQuality)?.write(to: url)
+                    break
+                case CunningScannerImageFormat.png:
+                    try? page.pngData()?.write(to: url)
+                    break
+                }
+                
+                filenames.append(url.path)
+            } else {
+                // Process all pages if singleDocumentMode is disabled
+                for i in 0 ..< maxPages {
+                    let page = scan.imageOfPage(at: i)
+                    let url = tempDirPath.appendingPathComponent(formattedDate + "-\(i).\(self.scannerOptions.imageFormat.rawValue)")
+                    switch self.scannerOptions.imageFormat {
+                    case CunningScannerImageFormat.jpg:
+                        try? page.jpegData(compressionQuality: self.scannerOptions.jpgCompressionQuality)?.write(to: url)
+                        break
+                    case CunningScannerImageFormat.png:
+                        try? page.pngData()?.write(to: url)
+                        break
+                    }
+                    
+                    filenames.append(url.path)
+                }
             }
             
-            filenames.append(url.path)
+            // Return result on main thread
+            DispatchQueue.main.async {
+                self.resultChannel?(filenames)
+                self.resultChannel = nil
+            }
         }
-        resultChannel?(filenames)
-        presentingController?.dismiss(animated: true)
     }
 
     public func documentCameraViewControllerDidCancel(_ controller: VNDocumentCameraViewController) {

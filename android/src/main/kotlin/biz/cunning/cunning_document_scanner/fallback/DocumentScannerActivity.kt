@@ -135,12 +135,25 @@ class DocumentScannerActivity : AppCompatActivity() {
                         imageView.imagePreviewBounds.height() / photo.height
                     )
 
+                // Apply frame color before setting cropper (so it's used when drawing)
+                if (frameColor != null) {
+                    imageView.setFrameColor(frameColor)
+                }
+                
                 // display cropper, and allow user to move corners
                 imageView.setCropper(cornersInImagePreviewCoordinates)
                 
-                // Apply frame color if specified
-                if (frameColor != null) {
-                    imageView.setFrameColor(frameColor)
+                // If singleDocumentMode is enabled and this is the first document, auto-return immediately
+                // This forces the scanner to return to the app after the first scan without user interaction
+                if (singleDocumentMode && documents.size == 0) {
+                    // Use a post to ensure the cropper is fully set before processing
+                    imageView.post {
+                        // Add the document to the list with the detected corners
+                        addSelectedCornersAndOriginalPhotoPathToDocuments()
+                        // Automatically finish and return to app immediately
+                        cropDocumentAndFinishIntent()
+                    }
+                    return@CameraUtil
                 }
             } catch (exception: Exception) {
                 finishIntentWithError(
@@ -177,6 +190,11 @@ class DocumentScannerActivity : AppCompatActivity() {
         // doesn't see this until they finish taking a photo
         setContentView(R.layout.activity_image_crop)
         imageView = findViewById(R.id.image_view)
+        
+        // Apply frame color early if specified (before any images are set)
+        if (frameColor != null) {
+            imageView.setFrameColor(frameColor)
+        }
 
         try {
             // validate maxNumDocuments option, and update default if user sets it
@@ -220,6 +238,11 @@ class DocumentScannerActivity : AppCompatActivity() {
                 "invalid extra: ${exception.message}"
             )
             return
+        }
+
+        // Apply frame color to imageView after it's initialized
+        if (frameColor != null) {
+            imageView.setFrameColor(frameColor)
         }
 
         // set click event handlers for new document button, accept and crop document button,
