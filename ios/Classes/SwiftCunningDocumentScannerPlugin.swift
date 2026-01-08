@@ -55,11 +55,15 @@ public class SwiftCunningDocumentScannerPlugin: NSObject, FlutterPlugin, VNDocum
             let formattedDate = df.string(from: currentDateTime)
             var filenames: [String] = []
             
-            // If singleDocumentMode is enabled, process ONLY the first page and return immediately
+            // If singleDocumentMode is enabled, try to process only the first page
+            // If user scanned multiple pages, process all of them as fallback (manual mode)
             let maxPages = self.scannerOptions.singleDocumentMode ? min(1, scan.pageCount) : scan.pageCount
             
-            // Process only the first page when singleDocumentMode is enabled
-            if self.scannerOptions.singleDocumentMode && scan.pageCount > 0 {
+            // Process pages based on singleDocumentMode setting
+            // If singleDocumentMode is true and only one page was scanned, process just that
+            // If multiple pages were scanned despite singleDocumentMode, process all (fallback to manual)
+            if self.scannerOptions.singleDocumentMode && scan.pageCount == 1 {
+                // Only one page scanned - process it and return
                 let page = scan.imageOfPage(at: 0)
                 let url = tempDirPath.appendingPathComponent(formattedDate + "-0.\(self.scannerOptions.imageFormat.rawValue)")
                 
@@ -74,8 +78,10 @@ public class SwiftCunningDocumentScannerPlugin: NSObject, FlutterPlugin, VNDocum
                 
                 filenames.append(url.path)
             } else {
-                // Process all pages if singleDocumentMode is disabled
-                for i in 0 ..< maxPages {
+                // Process all pages (either singleDocumentMode is false, or multiple pages were scanned)
+                // This allows fallback to manual mode if user scanned multiple pages
+                let pagesToProcess = self.scannerOptions.singleDocumentMode ? 1 : scan.pageCount
+                for i in 0 ..< pagesToProcess {
                     let page = scan.imageOfPage(at: i)
                     let url = tempDirPath.appendingPathComponent(formattedDate + "-\(i).\(self.scannerOptions.imageFormat.rawValue)")
                     switch self.scannerOptions.imageFormat {
