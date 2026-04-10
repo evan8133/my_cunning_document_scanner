@@ -156,6 +156,58 @@ class ImageCropView(context: Context, attrs: AttributeSet) : AppCompatImageView(
     }
 
     /**
+     * Sets the frame color for the document detection overlay.
+     * Supports hex colors (e.g., "#FF0000" or "FF0000") or named colors (e.g., "red", "blue").
+     *
+     * @param colorString the color as a string (hex or named color)
+     */
+    fun setFrameColor(colorString: String?) {
+        val color = parseColor(colorString)
+        cropperLinesAndCornersStyles.color = color
+        invalidate()
+    }
+
+    /**
+     * Parses a color string and returns an Android Color integer.
+     * Supports hex colors (e.g., "#FF0000", "#F00", "FF0000") or named colors (e.g., "red", "blue").
+     *
+     * @param colorString the color as a string (hex or named color)
+     * @return the parsed color as an integer, or Color.WHITE if invalid or null
+     */
+    private fun parseColor(colorString: String?): Int {
+        if (colorString == null || colorString.isEmpty()) {
+            return Color.WHITE
+        }
+
+        // Try hex color first
+        try {
+            if (colorString.startsWith("#")) {
+                return Color.parseColor(colorString)
+            } else if (colorString.length == 6 || colorString.length == 3) {
+                return Color.parseColor("#$colorString")
+            }
+        } catch (e: IllegalArgumentException) {
+            // Not a valid hex color, try named color
+        }
+
+        // Try named colors
+        return when (colorString.lowercase()) {
+            "red" -> Color.RED
+            "blue" -> Color.BLUE
+            "green" -> Color.GREEN
+            "white" -> Color.WHITE
+            "black" -> Color.BLACK
+            "yellow" -> Color.YELLOW
+            "cyan" -> Color.CYAN
+            "magenta" -> Color.MAGENTA
+            "gray", "grey" -> Color.GRAY
+            "darkgray", "darkgrey" -> Color.DKGRAY
+            "lightgray", "lightgrey" -> Color.LTGRAY
+            else -> Color.WHITE // Default
+        }
+    }
+
+    /**
      * @property imagePreviewBounds image coordinates - if the image ratio is different than
      * the image container ratio then there's blank space either at the top and bottom of the
      * image or the left and right of the image

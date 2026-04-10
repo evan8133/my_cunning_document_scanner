@@ -28,6 +28,7 @@ class CunningDocumentScannerPlugin : FlutterPlugin, MethodCallHandler, ActivityA
     private var delegate: PluginRegistry.ActivityResultListener? = null
     private var binding: ActivityPluginBinding? = null
     private var pendingResult: Result? = null
+    private var singleDocumentMode: Boolean = false
     private lateinit var activity: Activity
     private val START_DOCUMENT_ACTIVITY: Int = 0x362738
     private val START_DOCUMENT_FB_ACTIVITY: Int = 0x362737
@@ -48,8 +49,10 @@ class CunningDocumentScannerPlugin : FlutterPlugin, MethodCallHandler, ActivityA
         if (call.method == "getPictures") {
             val noOfPages = call.argument<Int>("noOfPages") ?: 50;
             val isGalleryImportAllowed = call.argument<Boolean>("isGalleryImportAllowed") ?: false;
+            singleDocumentMode = call.argument<Boolean>("singleDocumentMode") ?: false;
+            val frameColor = call.argument<String>("frameColor");
             this.pendingResult = result
-            startScan(noOfPages, isGalleryImportAllowed)
+            startScan(noOfPages, isGalleryImportAllowed, singleDocumentMode, frameColor)
         } else {
             result.notImplemented()
         }
@@ -87,9 +90,15 @@ class CunningDocumentScannerPlugin : FlutterPlugin, MethodCallHandler, ActivityA
                                     data?.extras?.getParcelable("extra_scanning_result")
                                         ?: return@ActivityResultListener false
 
-                                val successResponse = scanningResult.pages?.map {
+                                var successResponse = scanningResult.pages?.map {
                                     it.imageUri.toString().removePrefix("file://")
-                                }?.toList()
+                                }?.toList() ?: emptyList()
+                                
+                                // If single document mode is enabled, return only the first page
+                                if (singleDocumentMode && successResponse.isNotEmpty()) {
+                                    successResponse = listOf(successResponse[0])
+                                }
+                                
                                 // trigger the success event handler with an array of cropped images
                                 pendingResult?.success(successResponse)
                             }
@@ -120,9 +129,15 @@ class CunningDocumentScannerPlugin : FlutterPlugin, MethodCallHandler, ActivityA
 
                                 // return a list of file paths
                                 // removing file uri prefix as Flutter file will have problems with it
-                                val successResponse = croppedImageResults.map {
+                                var successResponse = croppedImageResults.map {
                                     it.removePrefix("file://")
                                 }.toList()
+                                
+                                // If single document mode is enabled, return only the first page
+                                if (singleDocumentMode && successResponse.isNotEmpty()) {
+                                    successResponse = listOf(successResponse[0])
+                                }
+                                
                                 // trigger the success event handler with an array of cropped images
                                 pendingResult?.success(successResponse)
                             }
@@ -140,6 +155,7 @@ class CunningDocumentScannerPlugin : FlutterPlugin, MethodCallHandler, ActivityA
                 if (handled) {
                     // Clear the pending result to avoid reuse
                     pendingResult = null
+                    singleDocumentMode = false
                 }
                 return@ActivityResultListener handled
             }
@@ -154,13 +170,23 @@ class CunningDocumentScannerPlugin : FlutterPlugin, MethodCallHandler, ActivityA
     /**
      * create intent to launch document scanner and set custom options
      */
-    private fun createDocumentScanIntent(noOfPages: Int): Intent {
+    private fun createDocumentScanIntent(noOfPages: Int, singleDocumentMode: Boolean, frameColor: String?): Intent {
         val documentScanIntent = Intent(activity, DocumentScannerActivity::class.java)
 
         documentScanIntent.putExtra(
             DocumentScannerExtra.EXTRA_MAX_NUM_DOCUMENTS,
             noOfPages
         )
+        documentScanIntent.putExtra(
+            DocumentScannerExtra.EXTRA_SINGLE_DOCUMENT_MODE,
+            singleDocumentMode
+        )
+        if (frameColor != null) {
+            documentScanIntent.putExtra(
+                DocumentScannerExtra.EXTRA_FRAME_COLOR,
+                frameColor
+            )
+        }
 
         return documentScanIntent
     }
@@ -169,10 +195,13 @@ class CunningDocumentScannerPlugin : FlutterPlugin, MethodCallHandler, ActivityA
     /**
      * add document scanner result handler and launch the document scanner
      */
-    private fun startScan(noOfPages: Int, isGalleryImportAllowed: Boolean) {
+    private fun startScan(noOfPages: Int, isGalleryImportAllowed: Boolean, singleDocumentMode: Boolean, frameColor: String?) {
+        // If single document mode is enabled, limit pages to 1
+        val pageLimit = if (singleDocumentMode) 1 else noOfPages
+        
         val options = GmsDocumentScannerOptions.Builder()
             .setGalleryImportAllowed(isGalleryImportAllowed)
-            .setPageLimit(noOfPages)
+            .setPageLimit(pageLimit)
             .setResultFormats(RESULT_FORMAT_JPEG)
             .setScannerMode(SCANNER_MODE_FULL)
             .build()
@@ -187,7 +216,7 @@ class CunningDocumentScannerPlugin : FlutterPlugin, MethodCallHandler, ActivityA
             }
         }.addOnFailureListener {
             if (it is MlKitException) {
-                val intent = createDocumentScanIntent(noOfPages)
+                val intent = createDocumentScanIntent(noOfPages, singleDocumentMode, frameColor)
                 try {
                     ActivityCompat.startActivityForResult(
                         this.activity,

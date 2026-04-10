@@ -44,6 +44,16 @@ class DocumentScannerActivity : AppCompatActivity() {
     private var croppedImageQuality = DefaultSetting.CROPPED_IMAGE_QUALITY
 
     /**
+     * @property singleDocumentMode when true, only one document can be scanned
+     */
+    private var singleDocumentMode = false
+
+    /**
+     * @property frameColor the color of the document detection frame
+     */
+    private var frameColor: String? = null
+
+    /**
      * @property cropperOffsetWhenCornersNotFound if we can't find document corners, we set
      * corners to image size with a slight margin
      */
@@ -71,13 +81,15 @@ class DocumentScannerActivity : AppCompatActivity() {
             // user takes photo
             originalPhotoPath ->
 
-            // if maxNumDocuments is 3 and this is the 3rd photo, hide the new photo button since
-            // we reach the allowed limit
+            // Hide new photo button only if we're at max documents limit
+            // For singleDocumentMode, we'll try auto-return but allow manual continuation if needed
             if (documents.size == maxNumDocuments - 1) {
                 val newPhotoButton: ImageButton = findViewById(R.id.new_photo_button)
                 newPhotoButton.isClickable = false
-                newPhotoButton.visibility = View.INVISIBLE
+                newPhotoButton.visibility = View.GONE
             }
+            // Note: For singleDocumentMode, we don't hide the button immediately
+            // This allows fallback to manual scanning if auto-return doesn't work
 
             // get bitmap from photo file path
             val photo: Bitmap? = try {
@@ -124,8 +136,37 @@ class DocumentScannerActivity : AppCompatActivity() {
                         imageView.imagePreviewBounds.height() / photo.height
                     )
 
+                // Apply frame color before setting cropper (so it's used when drawing)
+                if (frameColor != null) {
+                    imageView.setFrameColor(frameColor)
+                }
+                
                 // display cropper, and allow user to move corners
                 imageView.setCropper(cornersInImagePreviewCoordinates)
+                
+                // If singleDocumentMode is enabled and this is the first document, try auto-return
+                // If auto-return fails for any reason, fall back to manual scanning (default behavior)
+                if (singleDocumentMode && documents.size == 0) {
+                    // Use a post with a small delay to attempt auto-return
+                    // If user interacts before this completes, they can continue manually
+                    imageView.postDelayed({
+                        try {
+                            // Only auto-return if still on first document (user didn't continue manually)
+                            if (documents.size == 0 && document != null) {
+                                // Add the document to the list with the detected corners
+                                addSelectedCornersAndOriginalPhotoPathToDocuments()
+                                // Automatically finish and return to app immediately
+                                cropDocumentAndFinishIntent()
+                            }
+                            // If documents.size > 0, user already continued manually, so don't auto-return
+                        } catch (e: Exception) {
+                            // If auto-return fails, allow manual scanning (default behavior)
+                            // User can continue scanning normally
+                        }
+                    }, 100) // Small delay to allow for potential user interaction
+                    // Don't return here - allow the UI to show so user can see the document
+                    // If auto-return succeeds, it will finish. If not, user can continue manually.
+                }
             } catch (exception: Exception) {
                 finishIntentWithError(
                     "unable get image preview ready: ${exception.message}"
@@ -161,6 +202,11 @@ class DocumentScannerActivity : AppCompatActivity() {
         // doesn't see this until they finish taking a photo
         setContentView(R.layout.activity_image_crop)
         imageView = findViewById(R.id.image_view)
+        
+        // Apply frame color early if specified (before any images are set)
+        if (frameColor != null) {
+            imageView.setFrameColor(frameColor)
+        }
 
         try {
             // validate maxNumDocuments option, and update default if user sets it
@@ -185,11 +231,30 @@ class DocumentScannerActivity : AppCompatActivity() {
                 }
                 croppedImageQuality = it
             }
+
+            // read singleDocumentMode option
+            intent.extras?.get(DocumentScannerExtra.EXTRA_SINGLE_DOCUMENT_MODE)?.let {
+                if (it is Boolean) {
+                    singleDocumentMode = it
+                }
+            }
+
+            // read frameColor option
+            intent.extras?.get(DocumentScannerExtra.EXTRA_FRAME_COLOR)?.let {
+                if (it is String) {
+                    frameColor = it
+                }
+            }
         } catch (exception: Exception) {
             finishIntentWithError(
                 "invalid extra: ${exception.message}"
             )
             return
+        }
+
+        // Apply frame color to imageView after it's initialized
+        if (frameColor != null) {
+            imageView.setFrameColor(frameColor)
         }
 
         // set click event handlers for new document button, accept and crop document button,

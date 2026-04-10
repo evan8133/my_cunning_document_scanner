@@ -15,20 +15,35 @@ enum CunningScannerImageFormat: String {
 struct CunningScannerOptions {
     let imageFormat: CunningScannerImageFormat
     let jpgCompressionQuality: Double
+    let singleDocumentMode: Bool
+    let frameColor: String?
     
     init() {
         self.imageFormat = CunningScannerImageFormat.png
         self.jpgCompressionQuality = 1.0
+        self.singleDocumentMode = false
+        self.frameColor = nil
     }
     
     init(imageFormat: CunningScannerImageFormat) {
         self.imageFormat = imageFormat
         self.jpgCompressionQuality = 1.0
+        self.singleDocumentMode = false
+        self.frameColor = nil
     }
     
     init(imageFormat: CunningScannerImageFormat, jpgCompressionQuality: Double) {
         self.imageFormat = imageFormat
         self.jpgCompressionQuality = jpgCompressionQuality
+        self.singleDocumentMode = false
+        self.frameColor = nil
+    }
+    
+    init(imageFormat: CunningScannerImageFormat, jpgCompressionQuality: Double, singleDocumentMode: Bool, frameColor: String?) {
+        self.imageFormat = imageFormat
+        self.jpgCompressionQuality = jpgCompressionQuality
+        self.singleDocumentMode = singleDocumentMode
+        self.frameColor = frameColor
     }
     
     static func fromArguments(args: Any?) -> CunningScannerOptions {
@@ -38,14 +53,33 @@ struct CunningScannerOptions {
         
         let arguments = args as? Dictionary<String, Any>
     
+        // Check for top-level singleDocumentMode first (for Android compatibility)
+        let topLevelSingleDocumentMode: Bool = (arguments?["singleDocumentMode"] as? Bool) ?? false
+        let topLevelFrameColor: String? = arguments?["frameColor"] as? String
+        
         if arguments == nil || arguments!.keys.contains("iosScannerOptions") == false {
-            return CunningScannerOptions()
+            // If no iosScannerOptions, use top-level values or defaults
+            return CunningScannerOptions(
+                imageFormat: CunningScannerImageFormat.png,
+                jpgCompressionQuality: 1.0,
+                singleDocumentMode: topLevelSingleDocumentMode,
+                frameColor: topLevelFrameColor
+            )
         }
         
         let scannerOptionsDict = arguments!["iosScannerOptions"] as! Dictionary<String, Any>
         let imageFormat: String = (scannerOptionsDict["imageFormat"] as? String) ?? "png"
         let jpgCompressionQuality: Double = (scannerOptionsDict["jpgCompressionQuality"] as? Double) ?? 1.0
+        // Use singleDocumentMode from iosScannerOptions if provided, otherwise use top-level
+        let singleDocumentMode: Bool = (scannerOptionsDict["singleDocumentMode"] as? Bool) ?? topLevelSingleDocumentMode
+        // Use frameColor from iosScannerOptions if provided, otherwise use top-level
+        let frameColor: String? = (scannerOptionsDict["frameColor"] as? String) ?? topLevelFrameColor
             
-        return CunningScannerOptions(imageFormat: CunningScannerImageFormat(rawValue: imageFormat) ?? CunningScannerImageFormat.png, jpgCompressionQuality: jpgCompressionQuality)
+        return CunningScannerOptions(
+            imageFormat: CunningScannerImageFormat(rawValue: imageFormat) ?? CunningScannerImageFormat.png,
+            jpgCompressionQuality: jpgCompressionQuality,
+            singleDocumentMode: singleDocumentMode,
+            frameColor: frameColor
+        )
     }
 }
