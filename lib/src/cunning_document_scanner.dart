@@ -3,6 +3,7 @@ import 'dart:async';
 import 'package:flutter/services.dart';
 import 'package:permission_handler/permission_handler.dart';
 
+import 'android_scanner_mode.dart';
 import 'exceptions.dart';
 import 'ios_scanner_options.dart';
 
@@ -22,6 +23,12 @@ class CunningDocumentScanner {
   /// returns immediately after the first document is captured.
   /// [frameColor] allows customization of the document detection frame color on Android.
   /// Supports hex colors (e.g., "#FF0000" or "FF0000") or named colors (e.g., "red", "blue").
+  /// [androidScannerMode] controls the feature set of the Android GMS document scanner.
+  /// Use [AndroidScannerMode.baseWithFilter] or [AndroidScannerMode.full] to show the
+  /// filter-selection UI so the user can choose between Original (photo), Enhanced, and
+  /// Grayscale. Defaults to [AndroidScannerMode.base] (no filter UI, document enhancement
+  /// applied automatically). Has no effect on iOS or on devices that fall back to the
+  /// built-in scanner.
   /// [iosScannerOptions] is a set of options for the iOS scanner.
   ///
   /// Returns a list of paths to the scanned images, or null if the user cancels the operation.
@@ -30,6 +37,7 @@ class CunningDocumentScanner {
     bool isGalleryImportAllowed = false,
     bool singleDocumentMode = false,
     String? frameColor,
+    AndroidScannerMode androidScannerMode = AndroidScannerMode.base,
     IosScannerOptions? iosScannerOptions,
   }) async {
     Map<Permission, PermissionStatus> statuses = await [
@@ -46,11 +54,13 @@ class CunningDocumentScanner {
       'isGalleryImportAllowed': isGalleryImportAllowed,
       'singleDocumentMode': singleDocumentMode,
       if (frameColor != null) 'frameColor': frameColor,
+      'androidScannerMode': androidScannerMode.name,
       if (iosScannerOptions != null)
         'iosScannerOptions': {
           'imageFormat': iosScannerOptions.imageFormat.name,
           'jpgCompressionQuality': iosScannerOptions.jpgCompressionQuality,
           'singleDocumentMode': iosScannerOptions.singleDocumentMode,
+          'showFilterUI': iosScannerOptions.showFilterUI,
           if (iosScannerOptions.frameColor != null)
             'frameColor': iosScannerOptions.frameColor,
         }

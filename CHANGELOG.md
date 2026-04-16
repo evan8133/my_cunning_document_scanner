@@ -1,3 +1,36 @@
+## 2.0.7
+### iOS
+* Added `showFilterUI` option to `IosScannerOptions` (default `false`).
+  When `true`, a post-scan **filter selection screen** is presented before returning results to Flutter.
+  The user sees a full-screen preview of the scanned image and can choose:
+  * **Original** — image as returned by `VNDocumentCameraViewController` (respects the Color/Photo/Grayscale the user picked in the system scanner).
+  * **Grayscale** — colour stripped via `CIColorControls` (saturation 0).
+  * **B&W Doc** — high-contrast black & white optimised for text documents (saturation 0, contrast 1.5).
+  The chosen filter is applied to *all* scanned pages before file paths are returned.
+* Refactored `documentCameraViewController(_:didFinishWith:)` — simplified dual-branch logic replaced with a clean collect-then-branch pattern.
+
+## 2.0.6
+### Android
+* **Fixed `singleDocumentMode` in the fallback scanner:** the crop/corner-edit preview is now always shown before the user clicks Done. Previously the 100ms auto-return skipped the edit UI entirely. The "New Page" button is now hidden immediately when `singleDocumentMode` is true so the user can still only produce one page, but they get to review and adjust document corners first.
+
+## 2.0.5
+### Android
+* Added `androidScannerMode` parameter (`AndroidScannerMode` enum: `base`, `baseWithFilter`, `full`).
+  * `base` (default — backward-compatible): no filter UI, GMS scanner applies document enhancement automatically.
+  * `baseWithFilter`: shows a filter-selection screen so the user can choose **Original** (photo, no processing), **Enhanced**, or **Grayscale** before confirming the scan.
+  * `full`: same as `baseWithFilter` plus additional GMS features (e.g. image cleaning).
+  * **Note:** There is no public GMS API to pre-select "Original" as the default — the scanner always opens with "Enhanced" pre-selected. The user must tap "Original" themselves to get unprocessed output.
+* `singleDocumentMode` now correctly resets `androidScannerMode` after each scan call (prevents stale mode on repeated calls).
+### iOS
+* `singleDocumentMode` confirmed working — only the first scanned page is returned regardless of how many pages `VNDocumentCameraViewController` captured.
+* Filter limitation documented: `VNDocumentCameraViewController` applies automatic enhancement via the only available public API `imageOfPage(at:)`. No public API exists to disable this.
+
+## 2.0.3
+### iOS
+* **Platform limitation documented:** `VNDocumentCameraViewController` (Apple's built-in document scanner) automatically applies image enhancement/filters through its only public API `imageOfPage(at:)`. Apple does not expose any method to retrieve a raw, unfiltered image from this system controller. Users who need completely unfiltered output on iOS should post-process the returned image or implement a custom camera pipeline.
+### Android
+* GMS document scanner uses `SCANNER_MODE_BASE` which presents no filter UI to the user. The fallback scanner performs only perspective correction — no colour processing is applied. Both paths deliver images without automatic colour filtering, leaving post-processing to the developer.
+
 ## 2.0.0
 ### Breaking Changes
 * Reorganized library structure: all implementation files moved to `lib/src/` directory.

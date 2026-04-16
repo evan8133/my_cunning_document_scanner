@@ -10,6 +10,8 @@ import biz.cunning.cunning_document_scanner.fallback.constants.DocumentScannerEx
 import com.google.mlkit.common.MlKitException
 import com.google.mlkit.vision.documentscanner.GmsDocumentScannerOptions
 import com.google.mlkit.vision.documentscanner.GmsDocumentScannerOptions.RESULT_FORMAT_JPEG
+import com.google.mlkit.vision.documentscanner.GmsDocumentScannerOptions.SCANNER_MODE_BASE
+import com.google.mlkit.vision.documentscanner.GmsDocumentScannerOptions.SCANNER_MODE_BASE_WITH_FILTER
 import com.google.mlkit.vision.documentscanner.GmsDocumentScannerOptions.SCANNER_MODE_FULL
 import com.google.mlkit.vision.documentscanner.GmsDocumentScanning
 import com.google.mlkit.vision.documentscanner.GmsDocumentScanningResult
@@ -29,6 +31,7 @@ class CunningDocumentScannerPlugin : FlutterPlugin, MethodCallHandler, ActivityA
     private var binding: ActivityPluginBinding? = null
     private var pendingResult: Result? = null
     private var singleDocumentMode: Boolean = false
+    private var androidScannerMode: Int = SCANNER_MODE_BASE
     private lateinit var activity: Activity
     private val START_DOCUMENT_ACTIVITY: Int = 0x362738
     private val START_DOCUMENT_FB_ACTIVITY: Int = 0x362737
@@ -51,6 +54,11 @@ class CunningDocumentScannerPlugin : FlutterPlugin, MethodCallHandler, ActivityA
             val isGalleryImportAllowed = call.argument<Boolean>("isGalleryImportAllowed") ?: false;
             singleDocumentMode = call.argument<Boolean>("singleDocumentMode") ?: false;
             val frameColor = call.argument<String>("frameColor");
+            androidScannerMode = when (call.argument<String>("androidScannerMode")) {
+                "baseWithFilter" -> SCANNER_MODE_BASE_WITH_FILTER
+                "full" -> SCANNER_MODE_FULL
+                else -> SCANNER_MODE_BASE
+            }
             this.pendingResult = result
             startScan(noOfPages, isGalleryImportAllowed, singleDocumentMode, frameColor)
         } else {
@@ -156,6 +164,7 @@ class CunningDocumentScannerPlugin : FlutterPlugin, MethodCallHandler, ActivityA
                     // Clear the pending result to avoid reuse
                     pendingResult = null
                     singleDocumentMode = false
+                    androidScannerMode = SCANNER_MODE_BASE
                 }
                 return@ActivityResultListener handled
             }
@@ -203,7 +212,7 @@ class CunningDocumentScannerPlugin : FlutterPlugin, MethodCallHandler, ActivityA
             .setGalleryImportAllowed(isGalleryImportAllowed)
             .setPageLimit(pageLimit)
             .setResultFormats(RESULT_FORMAT_JPEG)
-            .setScannerMode(SCANNER_MODE_FULL)
+            .setScannerMode(androidScannerMode)
             .build()
         val scanner = GmsDocumentScanning.getClient(options)
         scanner.getStartScanIntent(activity).addOnSuccessListener {

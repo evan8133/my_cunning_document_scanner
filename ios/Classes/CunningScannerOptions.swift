@@ -17,12 +17,14 @@ struct CunningScannerOptions {
     let jpgCompressionQuality: Double
     let singleDocumentMode: Bool
     let frameColor: String?
+    let showFilterUI: Bool
     
     init() {
         self.imageFormat = CunningScannerImageFormat.png
         self.jpgCompressionQuality = 1.0
         self.singleDocumentMode = false
         self.frameColor = nil
+        self.showFilterUI = false
     }
     
     init(imageFormat: CunningScannerImageFormat) {
@@ -30,6 +32,7 @@ struct CunningScannerOptions {
         self.jpgCompressionQuality = 1.0
         self.singleDocumentMode = false
         self.frameColor = nil
+        self.showFilterUI = false
     }
     
     init(imageFormat: CunningScannerImageFormat, jpgCompressionQuality: Double) {
@@ -37,13 +40,15 @@ struct CunningScannerOptions {
         self.jpgCompressionQuality = jpgCompressionQuality
         self.singleDocumentMode = false
         self.frameColor = nil
+        self.showFilterUI = false
     }
     
-    init(imageFormat: CunningScannerImageFormat, jpgCompressionQuality: Double, singleDocumentMode: Bool, frameColor: String?) {
+    init(imageFormat: CunningScannerImageFormat, jpgCompressionQuality: Double, singleDocumentMode: Bool, frameColor: String?, showFilterUI: Bool = false) {
         self.imageFormat = imageFormat
         self.jpgCompressionQuality = jpgCompressionQuality
         self.singleDocumentMode = singleDocumentMode
         self.frameColor = frameColor
+        self.showFilterUI = showFilterUI
     }
     
     static func fromArguments(args: Any?) -> CunningScannerOptions {
@@ -74,12 +79,14 @@ struct CunningScannerOptions {
         let singleDocumentMode: Bool = (scannerOptionsDict["singleDocumentMode"] as? Bool) ?? topLevelSingleDocumentMode
         // Use frameColor from iosScannerOptions if provided, otherwise use top-level
         let frameColor: String? = (scannerOptionsDict["frameColor"] as? String) ?? topLevelFrameColor
+        let showFilterUI: Bool = (scannerOptionsDict["showFilterUI"] as? Bool) ?? false
             
         return CunningScannerOptions(
             imageFormat: CunningScannerImageFormat(rawValue: imageFormat) ?? CunningScannerImageFormat.png,
             jpgCompressionQuality: jpgCompressionQuality,
             singleDocumentMode: singleDocumentMode,
-            frameColor: frameColor
+            frameColor: frameColor,
+            showFilterUI: showFilterUI
         )
     }
 }

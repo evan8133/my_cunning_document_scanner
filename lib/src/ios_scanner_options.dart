@@ -18,6 +18,16 @@ import 'ios_image_format.dart';
 /// Note: This feature is not available on iOS as VNDocumentCameraViewController
 /// uses system UI that cannot be customized. This parameter is included for API
 /// consistency but will be ignored on iOS.
+///
+/// The [showFilterUI] when set to true, presents a post-scan filter selection
+/// screen before returning the result. The user can choose between:
+/// - **Original** — the image as returned by the system scanner (reflects
+///   whatever the user selected in the VNDocumentCameraViewController filter bar).
+/// - **Grayscale** — colour removed, soft grey tones.
+/// - **B&W Doc** — high-contrast black & white optimised for text documents.
+///
+/// This is the recommended way to give users control over the output image look
+/// on iOS, since there is no public API to pre-select the system scanner filter.
 final class IosScannerOptions {
   /// Creates a [IosScannerOptions].
   const IosScannerOptions({
@@ -25,6 +35,7 @@ final class IosScannerOptions {
     this.jpgCompressionQuality = 1.0,
     this.singleDocumentMode = false,
     this.frameColor,
+    this.showFilterUI = false,
   });
 
   final IosImageFormat imageFormat;
@@ -46,4 +57,14 @@ final class IosScannerOptions {
   /// Supports hex colors (e.g., "#FF0000" or "FF0000") or named colors (e.g., "red", "blue").
   /// Note: This feature is not available on iOS and will be ignored.
   final String? frameColor;
+
+  /// When true, a filter selection screen is shown after the scan completes,
+  /// letting the user preview the scanned image and choose:
+  /// - **Original** — image as returned by the system scanner.
+  /// - **Grayscale** — desaturated grey tones.
+  /// - **B&W Doc** — high-contrast black & white for documents/text.
+  ///
+  /// The selected filter is applied to all scanned pages before the result is
+  /// returned to Flutter. Default is false.
+  final bool showFilterUI;
 }
